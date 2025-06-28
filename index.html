@@ -540,21 +540,38 @@
 
         function startTimer() {
             gameState.questionStartTime = Date.now();
-            gameState.timeLeft = 3000;
+            
+            // Adaptive difficulty: reduce time based on streak
+            // Start at 3000ms, reduce by 150ms per streak level, minimum 1000ms
+            const baseTime = 3000;
+            const reductionPerStreak = 150;
+            const minimumTime = 1000;
+            const adaptiveTime = Math.max(minimumTime, baseTime - (gameState.streak * reductionPerStreak));
+            
+            gameState.timeLeft = adaptiveTime;
             
             const timerFill = document.getElementById('timer-fill');
             timerFill.style.width = '100%';
 
+            // Change timer color based on difficulty
+            if (adaptiveTime <= 1500) {
+                timerFill.style.background = 'linear-gradient(90deg, #ff4757, #ff3742, #ff1744)'; // Red - INSANE
+            } else if (adaptiveTime <= 2000) {
+                timerFill.style.background = 'linear-gradient(90deg, #ffa502, #ff6348, #ff4757)'; // Orange - HARD
+            } else {
+                timerFill.style.background = 'linear-gradient(90deg, #2ed573, #ffa502, #ff4757)'; // Normal gradient
+            }
+
             gameState.timer = setInterval(() => {
-                gameState.timeLeft -= 100;
-                const percentage = (gameState.timeLeft / 3000) * 100;
+                gameState.timeLeft -= 50; // Smoother animation with 50ms intervals
+                const percentage = (gameState.timeLeft / adaptiveTime) * 100;
                 timerFill.style.width = percentage + '%';
 
                 if (gameState.timeLeft <= 0) {
                     clearInterval(gameState.timer);
                     selectAnswer(null); // Timeout
                 }
-            }, 100);
+            }, 50);
         }
 
         function selectAnswer(answer) {
@@ -602,10 +619,12 @@
                     gameState.bestStreak = gameState.streak;
                 }
 
-                // Calculate score
-                const speedBonus = Math.max(0, Math.floor((3 - reactionTime) * 50));
+                // Calculate score with adaptive time consideration
+                const currentTimeLimit = Math.max(1000, 3000 - ((gameState.streak - 1) * 150)) / 1000; // Convert to seconds
+                const speedBonus = Math.max(0, Math.floor((currentTimeLimit - reactionTime) * 50));
                 const streakMultiplier = gameState.streak * 10;
-                const points = 100 + speedBonus + streakMultiplier;
+                const difficultyBonus = gameState.streak > 5 ? (gameState.streak - 5) * 25 : 0; // Extra points for high streaks
+                const points = 100 + speedBonus + streakMultiplier + difficultyBonus;
                 gameState.score += points;
 
                 // Visual feedback
